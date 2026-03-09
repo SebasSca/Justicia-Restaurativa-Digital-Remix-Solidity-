@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/// @title Token personalizado Puntos de Reinserción (PDR) basado en código de clase
+contract TokenPDR {
+    // ======= Estado del Token  =======
+    string private _name;
+    string private _symbol;
+    uint8  private _decimals;
+    uint256 private _totalSupply;
+    address public minter; // El contrato de Gestión Penal 
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    modifier soloMinter() {
+        require(msg.sender == minter, "No tienes permiso para gestionar tokens");
+        _;
+    }
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        address gestionContract
+    ) {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+        minter = gestionContract; // El contrato de gestión controlará este token 
+    }
+
+    // ======= Funciones Estándar =======
+    function name() external view returns (string memory) { return _name; }
+    function symbol() external view returns (string memory) { return _symbol; }
+    function decimals() external view returns (uint8) { return _decimals; }
+    function totalSupply() external view returns (uint256) { return _totalSupply; }
+    function balanceOf(address owner) external view returns (uint256) { return _balances[owner]; }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    // ======= Requisito: Función MINT  =======
+    function mint(address to, uint256 amount) external soloMinter {
+        _mint(to, amount);
+    }
+
+    // ======= Requisito: Función BURN [cite: 9, 20] =======
+    function burn(address from, uint256 amount) external soloMinter {
+        _burn(from, amount);
+    }
+
+    // ======= Ayudantes Internos =======
+    function _transfer(address from, address to, uint256 amount) internal {
+        require(from != address(0), "Transferencia desde direccion cero");
+        require(to != address(0), "Transferencia a direccion cero");
+        require(_balances[from] >= amount, "Saldo insuficiente");
+
+        _balances[from] -= amount;
+        _balances[to] += amount;
+        emit Transfer(from, to, amount);
+    }
+
+    function _mint(address to, uint256 amount) internal {
+        require(to != address(0), "Mint a direccion cero");
+        _totalSupply += amount;
+        _balances[to] += amount;
+        emit Transfer(address(0), to, amount);
+    }
+
+    function _burn(address from, uint256 amount) internal {
+        require(from != address(0), "Burn de direccion cero");
+        require(_balances[from] >= amount, "No hay suficientes puntos para quemar");
+
+        _balances[from] -= amount;
+        _totalSupply -= amount;
+        emit Transfer(from, address(0), amount);
+    }
+}
